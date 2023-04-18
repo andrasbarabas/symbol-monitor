@@ -2,88 +2,95 @@ package symbol
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 )
 
-type PriceResponse struct {
-	Price  float64 `json:"price,string"`
-	Symbol string  `json:"symbol"`
+type coinData struct {
+	MarketData marketData `json:"market_data"`
+	Symbol     string     `json:"symbol"`
+}
+
+type marketData struct {
+	CurrentPrice currentPrice `json:"current_price"`
+	MarketCap    marketCap    `json:"market_cap"`
+	TotalVolume  totalVolume  `json:"total_volume"`
+}
+
+type currentPrice struct {
+	Usd float64 `json:"usd"`
+}
+
+type marketCap struct {
+	Usd float64 `json:"usd"`
+}
+
+type totalVolume struct {
+	Usd float64 `json:"usd"`
 }
 
 type SymbolResponse struct {
 	DailyVolume float64   `json:"dailyVolume"`
+	MarketCap   float64   `json:"marketCap"`
 	Price       float64   `json:"price"`
+	Symbol      string    `json:"symbol"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
-type VolumeResponse struct {
-	BaseVol  float64 `json:"volume,string"`
-	QuoteVol float64 `json:"quoteVolume,string"`
-	Symbol   string  `json:"symbol"`
+type symbolData struct {
+	MarketCap float64
+	Price     float64
+	Symbol    string
+	Volume24h float64
 }
 
-const baseAPIUrl = "https://api.binance.com/api/v3/ticker"
-const pricePath = "price?symbol="
-const volumePath = "24hr?symbol="
+const coinGeckoAPIUrl = "https://api.coingecko.com/api/v3/coins/"
 
-func Fetch(symbol string) SymbolResponse {
-	price := fetchPrice(symbol)
-	volume := fetchVolume(symbol)
+func Fetch(symbol string) (*SymbolResponse, error) {
+	symbolData, err := fetchSymbolPriceAndVolume(symbol)
 
-	symbolResponse := SymbolResponse{
-		DailyVolume: volume,
-		Price:       price,
+	if err != nil {
+		return nil, err
+	}
+
+	symbolResponse := &SymbolResponse{
+		DailyVolume: symbolData.Volume24h,
+		MarketCap:   symbolData.MarketCap,
+		Price:       symbolData.Price,
+		Symbol:      symbolData.Symbol,
 		UpdatedAt:   time.Now(),
 	}
 
-	return symbolResponse
+	return symbolResponse, nil
 }
 
-func main() {
-	Fetch("BTCUSDT")
-}
-
-func fetchPrice(symbol string) float64 {
-	priceURL := fmt.Sprintf(baseAPIUrl+"/"+pricePath+"%s", symbol)
-
-	priceResp, err := http.Get(priceURL)
+func fetchSymbolPriceAndVolume(s string) (*symbolData, error) {
+	response, err := http.Get(coinGeckoAPIUrl + s)
 
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+
+		return nil, errors.New("An error occurred.")
 	}
 
-	defer priceResp.Body.Close()
+	defer response.Body.Close()
 
-	var priceResponse PriceResponse
+	var data coinData
 
-	err = json.NewDecoder(priceResp.Body).Decode(&priceResponse)
+	if err := json.NewDecoder(response.Body).Decode(&data); err != nil {
+		fmt.Println(err)
 
-	if err != nil {
-		panic(err)
+		return nil, errors.New("An error occurred.")
 	}
 
-	return priceResponse.Price
-}
-
-func fetchVolume(symbol string) float64 {
-	volumeURL := fmt.Sprintf(baseAPIUrl+"/"+volumePath+"%s", symbol)
-	volumeResp, err := http.Get(volumeURL)
-
-	if err != nil {
-		panic(err)
+	symbolData := &symbolData{
+		Price:     data.MarketData.CurrentPrice.Usd,
+		MarketCap: data.MarketData.MarketCap.Usd,
+		Symbol:    data.Symbol,
+		Volume24h: data.MarketData.TotalVolume.Usd,
 	}
 
-	defer volumeResp.Body.Close()
-
-	var volumeResponse VolumeResponse
-
-	err = json.NewDecoder(volumeResp.Body).Decode(&volumeResponse)
-
-	if err != nil {
-		panic(err)
-	}
-
-	return volumeResponse.QuoteVol
+	return symbolData, nil
 }

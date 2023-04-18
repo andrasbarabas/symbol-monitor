@@ -1,0 +1,21 @@
+{
+  "editor.formatOnSave": true,
+  "go.lintFlags": [
+    "--fast"
+  ],
+  "go.coverMode": "atomic",
+  "go.coverOnSave": true,
+  "go.coverageDecorator": {
+    "coveredGutterStyle": "blockgreen",
+    "coveredHighlightColor": "rgba(64,128,128,0.5)",
+    "type": "highlight",
+    "uncoveredGutterStyle": "blockred",
+    "uncoveredHighlightColor": "rgba(128,64,64,0.25)",
+  },
+  "go.coverageOptions": "showBothCoveredAndUncoveredCode",
+  "go.lintOnSave": "workspace",
+  "go.lintTool": "golangci-lint",
+  "search.exclude": {
+    "**/vendor": true
+  }
+}
